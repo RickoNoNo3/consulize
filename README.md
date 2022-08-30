@@ -3,7 +3,7 @@
 
 <hr>
 
-A very light-weight reverse proxy service mesh, registered to [Consul](https://github.com/hashicorp/consul), proxying to your own URLs. No more modification into your existing servers.
+A very light-weight reverse proxy service, registered to [Consul](https://github.com/hashicorp/consul), proxying to your own URLs. No more modification into your existing servers.
 
 If you are using load balance or routing tools, like [Fabio](https://github.com/fabiolb/fabio), `Consulize` may bring exciting routes tastes to you.
 
