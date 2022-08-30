@@ -1,7 +1,6 @@
 # Consulize
-<h2><center> Make every HTTP server under Consul. </center></h2>
 
-<hr>
+<div style="text-align: center"><center><h3> Make every HTTP server under Consul. </h3></center></div>
 
 A very light-weight reverse proxy service, registered to [Consul](https://github.com/hashicorp/consul), proxying to your own URLs. No more modification into your existing servers.
 
