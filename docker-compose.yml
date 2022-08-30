@@ -1,0 +1,38 @@
+version: "2"
+services:
+  consulize1:
+    #networks: # Use if Consul is in docker network too.
+    #  - consul
+    image: rickonono3/consulize:latest
+    container_name: consulize-1
+    environment:
+      - TARGET=http://127.0.0.1:80
+      - CONSUL_HTTP_ADDR=127.0.0.1:8500
+      - CONSUL_HTTP_PORT=8500
+      - TAGS=["urlprefix-/myApp strip=/myApp", "v1.0"]
+      - SERVICE_NAME=consulize
+      - SERVICE_HOST_FROM_CONSUL=172.17.0.1             # use Docker's Bridge
+      - SERVICE_PORT=8890
+    ports:
+      - "8890:8890"
+    restart: unless-stopped
+
+  consulize2:
+    image: rickonono3/consulize:latest
+    container_name: consulize-2                         # change the container name from consulize1
+    environment:
+      - TARGET=http://127.0.0.1:80
+      - CONSUL_HTTP_ADDR=127.0.0.1:8500
+      - CONSUL_HTTP_PORT=8500
+      - TAGS=["urlprefix-/myApp strip=/myApp", "v1.0"]
+      - SERVICE_NAME=consulize
+      - SERVICE_HOST_FROM_CONSUL=172.17.0.1             # use Docker's Bridge
+      - SERVICE_PORT=8891                               # change the port from consulize1
+    ports:
+      - "8891:8891"
+    restart: unless-stopped
+
+#networks: # Use if Consul is in docker network too.
+#  consul:
+#    external:
+#      name: consul_consul

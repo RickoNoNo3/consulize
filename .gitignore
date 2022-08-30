@@ -1,0 +1,17 @@
+.idea
+.vscode
+*.iml
+
+build
+build.*
+*.build
+
+*.swp
+_*.swp
+.*.swp
+
+consulize
+*.exe
+*.run
+*.out
+
