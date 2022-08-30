@@ -16,7 +16,7 @@ If you are using load balance or routing tools, like [Fabio](https://github.com/
 See the [compose example](docker-compose.yml)
 
 ### With Standalone Binaries
-See the repository's [Releases](), and [How to `run-consulize.sh`](run-consulize.sh)
+See the repository's [Releases](https://github.com/RickoNoNo3/consulize/releases), and [How to `run-consulize.sh`](run-consulize.sh)
 
 ### From Source
 You can easily build a single-file executable in your machine by using Go programming language:
@@ -32,7 +32,7 @@ go build -o consulize .
 Consulize is configured by environment variables. Below is some of them (Other Configurables of Consul in [doc](https://pkg.go.dev/github.com/hashicorp/consul/api@v1.14.0#HTTPAddrEnvName))
 
 |Env|Default Value|Description|
-|---:|---------|-----------|
+|---|---------|-----------|
 |TARGET|http://127.0.0.1:80|Full URL to your existing server|
 |TAGS|[ ]|Tags when registering to Consul. <br>Must be a JSON ARRAY
 |TAGS_FILE| |Path to a JSON file. Same format to `TAGS`, they will be merged together
