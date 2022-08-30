@@ -17,6 +17,8 @@ services:
     restart: unless-stopped
 
   consulize2:
+    #networks: # Use if Consul is in docker network too.
+    #  - consul
     image: rickonono3/consulize:latest
     container_name: consulize-2                         # change the container name from consulize1
     environment:
