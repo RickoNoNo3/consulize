@@ -8,7 +8,6 @@ services:
     environment:
       - TARGET=http://127.0.0.1:80
       - CONSUL_HTTP_ADDR=127.0.0.1:8500
-      - CONSUL_HTTP_PORT=8500
       - TAGS=["urlprefix-/myApp strip=/myApp", "v1.0"]
       - SERVICE_NAME=consulize
       - SERVICE_HOST_FROM_CONSUL=172.17.0.1             # use Docker's Bridge
@@ -23,7 +22,6 @@ services:
     environment:
       - TARGET=http://127.0.0.1:80
       - CONSUL_HTTP_ADDR=127.0.0.1:8500
-      - CONSUL_HTTP_PORT=8500
       - TAGS=["urlprefix-/myApp strip=/myApp", "v1.0"]
       - SERVICE_NAME=consulize
       - SERVICE_HOST_FROM_CONSUL=172.17.0.1             # use Docker's Bridge
