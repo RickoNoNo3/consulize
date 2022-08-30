@@ -2,10 +2,9 @@
 .vscode
 *.iml
 
-build
-build.*
+/build/
+/build.*/
 *.build
-^build.sh
 
 *.swp
 _*.swp
