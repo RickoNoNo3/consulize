@@ -5,9 +5,12 @@ rm -rf build.bak 2>/dev/null || true
 mv build build.bak 2>/dev/null || true
 rm -rf build 2>/dev/null || true
 mkdir build
+mkdir build/consulize
 
-cp ./run-consulize.sh ./build/
+cp ./run-consulize.sh ./build/consulize/
 
 go get -v
-go build -o ./build/consulize .
-zip -r ./build/consulize_linux_amd64.zip ./build/*
+go build -o ./build/consulize/consulize .
+
+cd build || exit 127
+zip -r consulize_linux_amd64.zip consulize/
