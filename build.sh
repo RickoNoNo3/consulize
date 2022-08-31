@@ -17,4 +17,4 @@ go get -v
 go build -o ./build/consulize/consulize .
 
 cd build || exit 127
-zip -r consulize_linux_amd64.zip consulize/
+zip -r9 consulize_linux_amd64.zip consulize/
