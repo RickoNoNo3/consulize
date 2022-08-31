@@ -150,6 +150,10 @@ func deregisterService(client *api.Client) {
 }
 
 func main() {
+	if len(os.Args) > 1 && strings.HasSuffix(os.Args[1], "version") {
+		fmt.Println("Consulize version: 1.1")
+		return
+	}
 	var err error
 	var returnCode = 0
 	defer func() {
