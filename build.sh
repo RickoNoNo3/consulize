@@ -8,6 +8,7 @@ mkdir build
 mkdir build/consulize
 
 cp ./run-consulize.sh ./build/consulize/
+cp ./docker-compose.yml ./build/consulize/
 
 go get -v
 go build -o ./build/consulize/consulize .
