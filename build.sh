@@ -9,6 +9,9 @@ mkdir build/consulize
 
 cp ./run-consulize.sh ./build/consulize/
 cp ./docker-compose.yml ./build/consulize/
+cp ./README.md ./build/consulize/
+cp ./structure.jpg ./build/consulize/
+cp ./LICENSE ./build/consulize/
 
 go get -v
 go build -o ./build/consulize/consulize .
