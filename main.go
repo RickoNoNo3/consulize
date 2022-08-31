@@ -156,7 +156,7 @@ func main() {
 			w.WriteHeader(http.StatusOK)
 		})
 	}
-	router.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+	router.HandleFunc("/*", func(w http.ResponseWriter, r *http.Request) {
 		proxy := httputil.NewSingleHostReverseProxy(Target)
 		logger.Info(r.URL.RequestURI())
 		proxy.ServeHTTP(w, r)
