@@ -6,14 +6,15 @@
 # If no external env variables set, the value here will be used.
 # For all configurables, see README.md
 #
-# Template:
-#   export ENV_NAME=${ENV_NAME:-value}
-#                              ↑ look here
 
-export TARGET=${TARGET:-http://127.0.0.1:80}
-export TAGS=${TAGS:-'["urlprefix-/myApp strip=/myApp", "v1.0"]'}
-export CONSUL_HTTP_ADDR=${CONSUL_HTTP_ADDR:-127.0.0.1:8500}
-export SERVICE_NAME=${SERVICE_NAME:-consulize}
+export TARGET="http://127.0.0.1:80"
+#export TAGS='["urlprefix-/myApp strip=/myApp", "v1.0"]'
+#export TAGS_FILE=./tags.json
+export TAGS='[]'
+export CONSUL_HTTP_ADDR="127.0.0.1:8500"
+export SERVICE_HOST_FROM_CONSUL="127.0.0.1"
+export SERVICE_PORT=8890
+export SERVICE_NAME=consulize
 
 #
 #---------------- NEVER EDIT -----------------

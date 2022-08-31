@@ -4,7 +4,7 @@
 
 A very light-weight reverse proxy service, registered to [Consul](https://github.com/hashicorp/consul), proxying to your own URLs. No more modification into your existing servers.
 
-If you are using load balance or routing tools, like [Fabio](https://github.com/fabiolb/fabio), `Consulize` may bring exciting routes tastes to you.
+**If you are using load balance or routing tools, like [Fabio](https://github.com/fabiolb/fabio), `Consulize` may bring an exciting routes taste to you.**
 
 ![structure](structure.jpg)
 
@@ -15,7 +15,7 @@ If you are using load balance or routing tools, like [Fabio](https://github.com/
 See the [compose example](docker-compose.yml)
 
 ### With Standalone Binaries
-See the repository's [Releases](https://github.com/RickoNoNo3/consulize/releases), and [How to `run-consulize.sh`](run-consulize.sh)
+See [Releases](https://github.com/RickoNoNo3/consulize/releases), and [How to `run-consulize.sh`](run-consulize.sh)
 
 ### From Source
 You can easily build a single-file executable in your machine by using Go programming language:
@@ -42,8 +42,6 @@ Consulize is configured by environment variables. Below is some of them (Other C
 |SERVICE_ID|`<serviceName>-<randomInt>`|Your own service id|
 |SERVICE_HOST_FROM_CONSUL|127.0.0.1|The `host`, where Consul sends requests to `Consulize`.
 |SERVICE_PORT|8890|The `port` `Consulize` would listen on.
-|SERVICE_NAMESPACE|
-|SERVICE_PARTITION|
 |TRANSMIT_HEALTH|false|Check health of the target server self instead of `Consulize`|
 |HEALTH_PATH|/health
 |HEALTH_TIMEOUT|3s

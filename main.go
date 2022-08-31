@@ -2,16 +2,15 @@ package main
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/gorilla/mux"
 	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/go-hclog"
+	"github.com/valyala/fasthttp"
+	proxy "github.com/yeqown/fasthttp-reverse-proxy/v2"
 	"io/ioutil"
 	"math/rand"
 	"net/http"
-	"net/http/httputil"
 	"net/url"
 	"os"
 	"os/signal"
@@ -32,8 +31,6 @@ var (
 	EnvServiceId                      = os.Getenv("SERVICE_ID")
 	EnvServiceHost                    = os.Getenv("SERVICE_HOST_FROM_CONSUL")
 	EnvServicePort                    = os.Getenv("SERVICE_PORT")
-	EnvServiceNamespace               = os.Getenv("SERVICE_NAMESPACE")
-	EnvServicePartition               = os.Getenv("SERVICE_PARTITION")
 	EnvTagsJsonStr                    = os.Getenv("TAGS")
 	EnvTagsFile                       = os.Getenv("TAGS_FILE")
 	Target                            *url.URL
@@ -42,8 +39,14 @@ var (
 	Tags                              []string
 )
 
+var registered = false
+var logger = hclog.New(&hclog.LoggerOptions{
+	Name: "consulize",
+})
+
 // 还有其他环境变量如 CONSUL_HTTP_ADDR 等，见 consul.api.DefaultConfig 的源码
 func init() {
+	proxy.SetProduction()
 	var err error
 	if EnvTarget == "" {
 		EnvTarget = "http://127.0.0.1:80"
@@ -72,7 +75,7 @@ func init() {
 	}
 	if EnvServiceId == "" {
 		rand.Seed(time.Now().Unix())
-		EnvServiceId = fmt.Sprintf("%s-%d", EnvServiceName, rand.Int())
+		EnvServiceId = fmt.Sprintf("%s-%d", EnvServiceName, rand.Int()%900000+100000)
 	}
 	if EnvServiceHost == "" {
 		EnvServiceHost = "127.0.0.1"
@@ -98,92 +101,169 @@ func init() {
 	}
 }
 
-func main() {
-	var err error
-	var registered = false
-	var logger = hclog.New(&hclog.LoggerOptions{
-		Name: "consulize",
-	})
-	// 准备好服务的注册信息
+func registerService() (client *api.Client, err error) {
 	registration := &api.AgentServiceRegistration{
-		ID:        EnvServiceId,
-		Name:      EnvServiceName,
-		Address:   EnvServiceHost,
-		Port:      ServicePort,
-		Tags:      Tags,
-		Namespace: EnvServiceNamespace,
-		Partition: EnvServicePartition,
+		ID:      EnvServiceId,
+		Name:    EnvServiceName,
+		Address: EnvServiceHost,
+		Port:    ServicePort,
+		Tags:    Tags,
 		Check: &api.AgentServiceCheck{
 			HTTP:                           fmt.Sprintf("http://%s:%d/%s", EnvServiceHost, ServicePort, EnvHealthPath),
 			Timeout:                        EnvHealthTimeout,
 			Interval:                       EnvHealthInterval,
 			DeregisterCriticalServiceAfter: EnvDeregisterCriticalServiceAfter,
 		},
-		//Tags: []string{
-		//	"urlprefix-/no-regret/api/mail/ strip=/no-regret/api",
-		//	"urlprefix-/no-regret/api/user/getUserByUserHash strip=/no-regret/api",
-		//	"urlprefix-/no-regret/api/user/feedback strip=/no-regret/api",
-		//},
 	}
-
-	// 启动client，注册服务
-	client, err := api.NewClient(api.DefaultConfig())
+	client, err = api.NewClient(api.DefaultConfig())
 	if err != nil {
-		logger.Error("Consul client startup failed: ", err.Error())
+		return
 	}
 	err = client.Agent().ServiceRegister(registration)
-	defer func() {
-		if registered {
-			if err = client.Agent().ServiceDeregisterOpts(EnvServiceId, &api.QueryOptions{
-				Namespace: EnvServiceNamespace,
-				Partition: EnvServicePartition,
-			}); err != nil {
-				logger.Warn("Cannot deregister the service. Please wait for auto deregister: ", err)
-			} else {
-				registered = false
-			}
-		}
-	}()
 	if err != nil {
-		logger.Error("Consul service register failed: ", err.Error())
+		return
 	}
 	registered = true
+	return
+}
 
-	// 准备反向代理和健康检查Handler
-	router := mux.NewRouter()
-	if !TransmitHealth { // Transmit 时直接走/ (透传), 不走这个
-		router.HandleFunc("/"+EnvHealthPath, func(w http.ResponseWriter, r *http.Request) {
-			w.WriteHeader(http.StatusOK)
-		})
+func cleanRedundantOldServices(client *api.Client) {
+	if registered {
+		if svcs, err := client.Agent().ServicesWithFilter(
+			fmt.Sprintf("Address==\"%s\" and Port==%d and ID!=\"%s\"", EnvServiceHost, ServicePort, EnvServiceId),
+		); err == nil && svcs != nil {
+			for _, v := range svcs {
+				_ = client.Agent().ServiceDeregister(v.ID)
+			}
+		}
 	}
-	router.HandleFunc("/*", func(w http.ResponseWriter, r *http.Request) {
-		proxy := httputil.NewSingleHostReverseProxy(Target)
-		logger.Info(r.URL.RequestURI())
-		proxy.ServeHTTP(w, r)
-	})
-	server := &http.Server{
-		Addr:    fmt.Sprintf(":%d", ServicePort),
-		Handler: router,
+}
+
+func deregisterService(client *api.Client) {
+	if registered {
+		if err := client.Agent().ServiceDeregister(EnvServiceId); err != nil {
+			logger.Warn("Cannot deregister the service. Please wait for auto deregister: ", err)
+		} else {
+			registered = false
+		}
 	}
-	done := make(chan os.Signal, 1)
-	signal.Notify(done, os.Interrupt, syscall.SIGINT, syscall.SIGTERM, syscall.SIGKILL)
-	// 开启服务器
-	go func() {
-		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			logger.Error("HTTP serving error: ", err)
+}
+
+func main() {
+	var err error
+	var returnCode = 0
+	defer func() {
+		if returnCode != 0 {
+			os.Exit(returnCode)
 		}
 	}()
-	logger.Info("HTTP serving")
 
-	// 收到结束信号  等5s后关闭服务器
-	<-done
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer func() {
-		cancel()
+	// 监听系统信号
+	done := make(chan os.Signal, 1)
+	signal.Notify(done, os.Interrupt, syscall.SIGINT, syscall.SIGTERM, syscall.SIGKILL)
+
+	// 检查目标URL协议，是HTTP还是WebSocket, 然后准备Server对象
+	var proxyHandler fasthttp.RequestHandler
+	if Target.Scheme == "http" || Target.Scheme == "https" {
+		// 开启HTTP服务器
+		// 这里采取路径分离策略，把配置中的Path部分单独拿出来，加入到每个反代请求的Path上作为前缀
+		// 而反代服务器在启动的时候只有host:port，不包含path
+
+		// http://hello.world:233/ok   =>   hello.world:233   用来注册反代服务器
+		targetServer := Target.Hostname()
+		if Target.Port() != "" {
+			targetServer += ":" + Target.Port()
+		}
+		// http://hello.world:233/ok   =>   /ok            用来叠加到每一个请求前
+		pathPrefix := Target.EscapedPath()
+
+		// proxy server
+		proxyServer := proxy.NewReverseProxy(targetServer)
+		if pathPrefix != "/" {
+			proxyHandler = func(ctx *fasthttp.RequestCtx) {
+				// http://hello.world:233/ok
+				// CONSULIZE_HOST/welcome             =>   /ok/welcome
+				ctx.Request.SetRequestURI(pathPrefix + string(ctx.Request.RequestURI()))
+				proxyServer.ServeHTTP(ctx)
+			}
+		} else {
+			proxyHandler = proxyServer.ServeHTTP
+		}
+	} else if Target.Scheme == "ws" || Target.Scheme == "wss" {
+		// 开启Websocket服务器
+		if proxyServer, err := proxy.NewWSReverseProxyWith(
+			// here uses scheme
+			proxy.WithURL_OptionWS(Target.String()),
+		); err == nil {
+			proxyHandler = proxyServer.ServeHTTP
+		} else {
+			logger.Error("Cannot make websocket proxies with URL: ", Target.String())
+			returnCode = 1
+			return
+		}
+	} else {
+		logger.Error("Cannot make proxies with URL: ", Target.String())
+		returnCode = 1
+		return
+	}
+	server := &fasthttp.Server{
+		Handler: func(ctx *fasthttp.RequestCtx) {
+			path := string(ctx.Path())
+			if !TransmitHealth && path == "/"+EnvHealthPath { // embedded health check
+				ctx.SetStatusCode(200)
+			} else {
+				logger.Info(path)
+				proxyHandler(ctx)
+			}
+		},
+		CloseOnShutdown: true,
+	}
+
+	// 开启服务器, 将serverErr作为服务器开启和关闭以及关闭时消息的变量，为nil意味着没关闭，为http.ErrServerClosed意味着正常关闭，其他情况为异常关闭
+	logger.Info("HTTP serving")
+	var serverErr error
+	go func() {
+		serverErr = server.ListenAndServe(fmt.Sprintf(":%d", ServicePort))
+		if serverErr == nil {
+			serverErr = http.ErrServerClosed
+		}
+		<-done
 	}()
-	logger.Info("HTTP server is ready to shutdown")
-	if err = server.Shutdown(ctx); err != nil {
-		logger.Error("HTTP server shutdown error: ", err)
+	time.Sleep(2 * time.Second) // 等2s，如果服务器进程初始化时发生错误，那后面就都不用进了
+	if serverErr != nil && serverErr != http.ErrServerClosed {
+		logger.Error("HTTP serving serverError: ", serverErr)
+		returnCode = 1
+		return
+	}
+
+	// 注册Consul服务
+	logger.Info("Consul service registering")
+	var client *api.Client
+	if client, err = registerService(); err != nil {
+		logger.Error("Failed to register Consul service", err.Error())
+		returnCode = 1
+		return
+	}
+	defer deregisterService(client)
+	cleanRedundantOldServices(client)
+	logger.Info("Consul service registered")
+
+	// 等待服务器发来的结束信号，或者系统发来的结束信号
+	<-done
+	// 收到结束信号后解除Consul服务，然后如果服务器还没关闭(serverErr==nil)的话，等待1s关闭服务器
+	logger.Info("Consul service deregistering")
+	deregisterService(client)
+	if serverErr == nil {
+		logger.Info("HTTP server is ready to shutdown")
+		time.Sleep(time.Second)
+		if err = server.Shutdown(); err != nil {
+			logger.Error("HTTP server shutdown error: ", err)
+			returnCode = 2
+			return
+		} else {
+			time.Sleep(time.Second)
+			logger.Info("stopped")
+		}
 	} else {
 		logger.Info("stopped")
 	}
