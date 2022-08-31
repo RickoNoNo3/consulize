@@ -1,8 +1,6 @@
 #!/bin/bash
 cd "$(dirname "$0")" || exit 127
 
-/bin/bash docker-build.sh &
-
 rm -rf build.bak 2>/dev/null || true
 mv build build.bak 2>/dev/null || true
 rm -rf build 2>/dev/null || true
