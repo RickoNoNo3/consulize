@@ -8,6 +8,6 @@ mkdir build
 
 cp ./run-consulize.sh ./build/
 
-go get
+go get -v
 go build -o ./build/consulize .
 zip -r ./build/consulize_linux_amd64.zip ./build/*
