@@ -1,7 +1,7 @@
 #!/bin/bash
 cd "$(dirname "$0")" || exit 127
 
-docker build -t rickonono3/consulize:rc . &
+/bin/bash docker-build.sh &
 
 rm -rf build.bak 2>/dev/null || true
 mv build build.bak 2>/dev/null || true
